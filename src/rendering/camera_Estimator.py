@@ -80,11 +80,9 @@ class camera_Estimator:
 
       other_matches = set(matches) - set(add_order)
       identity_cam = add_order[0].image_a
-      identity_cam.R, identity_cam.K = np.identity(3),np.identity(3)
+      identity_cam.R = np.identity(3)
       identity_cam.ppx, identity_cam.ppy = 0, 0
-      identity_cam = add_order[0].image_b
-      identity_cam.R, identity_cam.K = np.identity(3),np.identity(3)
-      identity_cam.ppx, identity_cam.ppy = 0, 0
+
 
       for match in add_order:
           print(f'match.cam_from.R: {match.image_a.R}')
@@ -124,7 +122,7 @@ class camera_Estimator:
   def _reverse_match(self, match):
       match.image_a, match.image_b = match.image_b, match.image_a
       match.H = np.linalg.pinv(match.H)
-      for inlier in match.inliers:
+      for inlier in match._inliers:
         inlier[0], inlier[1] = inlier[1], inlier[0]
       return self._normalise_match_H(match)
 

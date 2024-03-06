@@ -1,7 +1,7 @@
 import numpy as np
 from ordered_set import OrderedSet
 
-from src.images import camera, constants 
+from src.images import camera, constants, image 
 
 
 class State:
@@ -30,7 +30,7 @@ class State:
     cameras = []
 
     for i in range(0, len(self._params), constants.PARAMS_PER_CAMERA):
-      new_camera = camera.Camera(None)
+      new_camera = image.Image(None)
       new_camera.focal = self._params[i]
       new_camera.ppx = self._params[i+1]
       new_camera.ppy = self._params[i+2]
@@ -38,10 +38,10 @@ class State:
       new_camera.R = m
       cameras.append(new_camera)
 
-      # print(f'{i} of original_cameras {len(self._original_cameras)}')
-      # print(f'==============================')
-      # print(f'Original camera R: \n{self._original_cameras[i//6].R}')
-      # print(f'Retrieved camera R: \n{new_camera.R}')
+      print(f'{i} of original_cameras {len(self._original_cameras)}')
+      print(f'==============================')
+      print(f'Original camera R: \n{self._original_cameras[i//6].R}')
+      print(f'Retrieved camera R: \n{new_camera.R}')
 
     return cameras
 
@@ -72,5 +72,6 @@ class State:
       self._params[i+1] = camera.ppx
       self._params[i+2] = camera.ppy
       self._params[i+3:i+6] = camera.angle_parameterisation()
+      print("Angle: ", self._params[i+3:i+6])
       # if (self._params[i+3] == 0 and self._params[i+4] == 0 and self._params[i+5] == 0):
       #   self._idt = i

@@ -20,7 +20,8 @@ from src.matching import (
 
 )
 from src.rendering import multi_band_blending, set_gain_compensations, simple_blending
-from src.rendering import estimador
+from src.rendering import estimador, camera_Estimator
+from pprint import pprint 
 
 parser = argparse.ArgumentParser(
     description="Create panoramas from a set of images. \
@@ -114,15 +115,18 @@ for connected_component in connected_components:
     """
     ca = camera_Estimator.camera_Estimator()
     camera = ca.create_cameras(component_matches)
+    print("directorio camera")
+    pprint(dir(camera))
     add_order = ca.max_span_tree_order_2(component_matches)
     bundle_camera = ca.set_bundle(component_matches,add_order)
     print("Paso 3",bundle_camera)
     """
     camera_estimador = estimador.camera_Estimator(component_matches)
     camaras_listas = camera_estimador.estimate()
-    
 
     print(camaras_listas)
+    
+
 
 
 time.sleep(0.1)

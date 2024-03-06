@@ -5,6 +5,7 @@ from src.images import Image
 from src.images import camera
 from src.matching import PairMatch, match
 from src.rendering import bundle_adjuster
+from pprint import pprint
 
 class camera_Estimator:
     def __init__(self, matches):
@@ -17,14 +18,15 @@ class camera_Estimator:
             # result = warp_two_images(m.cam_to.image.image, m.cam_from.image.image, m.H)
             # cv.imshow('Result', result)
             # cv.waitKey(0)
-        
+        """
         for match in self._matches:
           print("Elemento R AF")
           print("valor " , match.R)
           print("Elemento K AF")
           print("valor ", match.K)
-       
+        """
         self._estimate_focal()
+        
         """
         for match in self._matches:
           print("Elemento R EF")
@@ -118,9 +120,11 @@ class camera_Estimator:
       ba = bundle_adjuster.BundleAdjuster()
 
       other_matches = set(self._matches) - set(add_order)
+
       identity_cam = add_order[0].image_a
       identity_cam.R = np.identity(3)
       identity_cam.ppx, identity_cam.ppy = 0, 0
+      
       """
       identity_cam = add_order[0].image_b
       identity_cam.R, identity_cam.K = np.identity(3),np.identity(3)
@@ -128,23 +132,25 @@ class camera_Estimator:
       """
 
       for match in add_order:
-          print(f'match.cam_from.R: {match.image_a.R}')
-          print(f'match.cam_from.K: {match.image_a.K}')
-          print(f'match.H: {match.H}')
-          print(f'match.cam_to.K: {match.image_b.K}')
-          match.image_b.R = (match.image_a.R.T @ (np.linalg.pinv(match.image_a.K) @ match.H @ match.image_b.K)).T
-          match.image_b.ppx, match.image_b.ppy = 0, 0
+        #print(f'match.cam_from.R: {match.image_a.R}')
+        #print(f'match.cam_from.K: {match.image_a.K}')
+        #print(f'match.H: {match.H}')
+        #print(f'match.cam_to.K: {match.image_b.K}')
+
+        match.image_b.R = (match.image_a.R.T @ (np.linalg.pinv(match.image_a.K) @ match.H @ match.image_b.K)).T
+        match.image_b.ppx, match.image_b.ppy = 0, 0
+        ba.add(match)
+        added_cams = ba.added_cameras()
+        to_add = set()
+        for other_match in other_matches:
+          # If both cameras already added, add the match to BA
+          if (other_match.image_a in added_cams and other_match.image_b in added_cams):
+            to_add.add(other_match)
+        for match in to_add:
+          # self._reverse_match(match)
           ba.add(match)
-          added_cams = ba.added_cameras()
-          to_add = set()
-          for other_match in other_matches:
-              # If both cameras already added, add the match to BA
-              if (other_match.image_a in added_cams and other_match.image_b in added_cams):
-                to_add.add(other_match)
-          for match in to_add:
-              # self._reverse_match(match)
-              ba.add(match)
-              other_matches.remove(match)
+          other_matches.remove(match)
+      
       all_cameras = None
       ba.run()
       all_cameras = self._all_cameras()

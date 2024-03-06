@@ -55,7 +55,7 @@ class BundleAdjuster:
     '''
     Add a match to the bundle adjuster
     '''
-    num_pointwise_matches = sum(len(match.inliers) for match in self._matches)
+    num_pointwise_matches = sum(len(match._inliers) for match in self._matches)
     self._match_count.append(num_pointwise_matches)
 
     self._matches.append(match)
@@ -85,6 +85,7 @@ class BundleAdjuster:
     print('Initial params')
     for param in initial_state.params:
       print(param)
+
     MaxIter = MAX_ITR 
     PopSize = 150 
     c1 = 1.4962 
@@ -314,7 +315,7 @@ class BundleAdjuster:
 
 
       num_cams = len(cameras)
-      num_pointwise_matches = sum(len(match.inliers) for match in self._matches)
+      num_pointwise_matches = sum(len(match._inliers) for match in self._matches)
 
       J = np.zeros((PARAMS_PER_POINT_MATCH * num_pointwise_matches, PARAMS_PER_CAMERA * num_cams), dtype=np.float64)
       JtJ = np.zeros((PARAMS_PER_CAMERA * num_cams, PARAMS_PER_CAMERA * num_cams), dtype=np.float64)
@@ -331,20 +332,20 @@ class BundleAdjuster:
         # print(f'Loop itr: {i}')
         match_count_idx = self._match_count[i] * 2
 
-        cam_to_idx = self._cameras.index(match.cam_to)
-        cam_from_idx = self._cameras.index(match.cam_from)
+        cam_to_idx = self._cameras.index(match.image_b)
+        cam_from_idx = self._cameras.index(match.image_a)
 
         cam_to = cameras[cam_to_idx]
         cam_from = cameras[cam_from_idx]
 
-        # print(f'from.R: {cam_from.R}')
-        # print(f'to.R: {cam_to.R}')
+        print(f'from.R: {cam_from.R}')
+        print(f'to.R: {cam_to.R}')
 
         params_index_from = cam_from_idx * PARAMS_PER_CAMERA
         params_index_to = cam_to_idx * PARAMS_PER_CAMERA
 
-        # print(f'params_index_from: {params_index_from}')
-        # print(f'params_index_to: {params_index_to}')
+        print(f'params_index_from: {params_index_from}')
+        print(f'params_index_to: {params_index_to}')
 
         from_K = cam_from.K
         to_K_inv = np.linalg.pinv(cam_to.K)
@@ -355,9 +356,9 @@ class BundleAdjuster:
         d_R_to_vi_T = [m.T for m in d_R_to_vi]
 
         H_to_to_from = (from_K @ from_R) @ (to_R_inv @ to_K_inv)
-        # print(f'H_to_to_from: {H_to_to_from}')
+        print(f'H_to_to_from: {H_to_to_from}')
 
-        for (pair_index, pair) in enumerate(match.inliers):
+        for (pair_index, pair) in enumerate(match._inliers):
           to_coordinate = pair[1]
           homo = self._trans(H_to_to_from, to_coordinate)
           hz_sqr_inv = 1 / (homo[2]**2)
@@ -486,7 +487,7 @@ class BundleAdjuster:
     error = np.zeros((num_pointwise_matches * PARAMS_PER_POINT_MATCH))
 
     count = 0
-    for match in self._matches:
+    for i, match in enumerate(self._matches):
       cam_from = current_cameras[self._cameras.index(match.image_a)]
       cam_to = current_cameras[self._cameras.index(match.image_b)]
       from_K = cam_from.K
@@ -496,7 +497,7 @@ class BundleAdjuster:
       H_to_to_from = (from_K @ from_R) @ (to_R_inv @ to_K_inv)
 
       start = count
-      for pair in match.matches:
+      for pair in match._inliers:
         from_coordinate = pair[0]
         to_coordinate = pair[1]
 
@@ -505,16 +506,19 @@ class BundleAdjuster:
         error[count+1] = from_coordinate[1] - transformed[1]
 
         count += 2
-
-      print(f'Match from_{match.cam_from.image.filename} to_{match.cam_to.image.filename} error: {math.sqrt(np.mean(error[start:]**2))}')
+        
+      print(f'Match from_{match.image_a.path} to_{match.image_b.path} error: {math.sqrt(np.mean(error[start:]**2))}')
     
-    # print(f'projection_error ({len(error)}):\n{error}')
+      print(f'projection_error ({len(error)}):\n{error}')
 
     return error
 
 
   def _get_next_update(self, J, JtJ, residuals):
     # # Regularisation
+    print("next update residual: ", residuals)
+    print("next update J: ", J)
+    print("next update JtJ: ", JtJ)
     l = random.normalvariate(1, 0.1)
     # print(f'random.normalvariate(10, 20): {random.normalvariate(10, 20)}')
     for i in range(len(self._cameras) * PARAMS_PER_CAMERA):

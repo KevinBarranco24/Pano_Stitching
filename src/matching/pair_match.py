@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import math
 from src.images import Image
+from src.matching import homography_dlt
 
 
 
@@ -27,7 +28,6 @@ class PairMatch:
         self.matchpoints_a = None
         self.matchpoints_b = None
         self._inliers = None
-        self.R = None
 
     def cams(self):
         return [self.image_b, self.image_a]
@@ -62,6 +62,9 @@ class PairMatch:
         """Compute and set the overlap region between the two images."""
         if self.H is None:
             self.compute_homography()
+            self._inliers = self.homography_ransac()
+           
+
 
         mask_a = np.ones_like(self.image_a.image[:, :, 0], dtype=np.uint8)
         mask_b = cv2.warpPerspective(
@@ -87,6 +90,7 @@ class PairMatch:
 
         if self.status is None:
             self.compute_homography()
+            self._inliers = self.homography_ransac()
 
         matches_in_overlap = self.matchpoints_a[
             self.overlap[
@@ -95,6 +99,7 @@ class PairMatch:
             ]
             == 1
         ]
+        
 
         return self.status.sum() > alpha + beta * matches_in_overlap.shape[0]
 
@@ -200,3 +205,80 @@ class PairMatch:
             return 0
 
         return math.sqrt(f1 * f0)
+    
+    def homography_ransac(self, threshold: float = 5, n_iterations: int = 500):
+        """
+        Find a best guess for the homography to map pts2 onto 
+        the plane of pts1
+        
+        Input: 
+            pts1 - Destination plane
+            pts2 - Points to transform onto destination plane#
+
+        Output: Tuple of (Homography projecting pts2 onto pts1 plane, RANSAC inlier kps)
+        """
+
+        # Store maxInliners are points, if there is a tie in max, 
+        # take the H that has maxInliners with the smallest standard deviation
+        maxInliers = []
+        bestH = None
+        pts1 = self.matchpoints_a
+        pts2 = self.matchpoints_b
+        
+
+        for i in range(n_iterations):
+            # 4 random point indexes
+            random_pts_idxs = np.random.choice(len(pts1), 4)
+
+            # Get random sample using random indexes
+            pts1_sample = pts1[random_pts_idxs]
+            pts2_sample = pts2[random_pts_idxs]
+
+            # Compute H using DLT
+            H = homography_dlt.direct_linear_transform(pts1_sample, pts2_sample)
+
+            inliers = []
+
+            # For each correspondence
+            for i in range(len(pts1)):
+                # Get distance for each correspondance
+                distance = self.transfer_error(pts1[i], pts2[i], H)
+
+                # Add correspondence to inliners if distance less than threshold
+                if (distance < threshold):
+                    inliers.append([pts1[i], pts2[i]])
+
+            
+            # If inliers > maxInliers, set as new best H
+            if (len(inliers) > len(maxInliers)):
+                maxInliers = inliers
+                # TODO: else if inliers == maxInliers, pick best H based on smallest standard deviation
+        for i in range(len(inliers)):
+          maxInliers[i][0], maxInliers[i][1] = maxInliers[i][1], maxInliers[i][0]
+        
+        return maxInliers  
+    
+    def transfer_error(self, pt1, pt2, H):
+        """
+        Calculate the transfer error between the two 
+
+        NOTE: There are other distance metrics (e.g. symmetric distance, could they be better?)
+
+        Input:
+            pt1 - Destination point
+            pt2 - Point to transform onto destination plane
+            H - homography to transform 
+
+        Output: Sum squared distance error
+        """
+
+        pt1 = np.append(pt1, [1])
+        pt2 = np.append(pt2, [1])
+
+        pt1_projected = ((H @ pt1).T).T 
+
+        diff = (pt2 - pt1_projected)
+
+        sse = np.sum(diff**2)
+
+        return sse    

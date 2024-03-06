@@ -58,16 +58,8 @@ class MultiImageMatches:
                     pair_match = PairMatch(image_a, image_b, self.get_matches(image_a, image_b))
                     if pair_match.is_valid():
                         pair_matches.append(pair_match)
-                        self._cameras[i]
+                        self._cameras[self.images.index(image_a)]
                         self._cameras[self.images.index(image_b)]
-                        print("self camaras pair match K")
-                        print(self._cameras[i].K)
-                        print("self camaras pair match R")
-                        print(self._cameras[self.images.index(image_a)].R)
-                        print("self camaras pair match K")
-                        print(self._cameras[i].K)
-                        print("self camaras pair match R")
-                        print(self._cameras[self.images.index(image_b)].R)
         return pair_matches
 
     def compute_matches(self, image_a: Image, image_b: Image) -> list:
